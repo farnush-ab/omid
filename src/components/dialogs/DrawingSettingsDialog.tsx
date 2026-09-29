@@ -39,22 +39,27 @@ export function DrawingSettingsDialog({
   if (!drawing || !def || !draft || !before) return null;
   const symbol = app.engine.getSymbol();
 
-  const apply = (next: SerializedDrawing) => {
-    setDraft(next);
-    app.drawings.preview(drawingId, next);
+  const apply = (next: SerializedDrawing | ((current: SerializedDrawing) => SerializedDrawing)) => {
+    setDraft((current) => {
+      if (!current) return current;
+      const resolved = typeof next === 'function' ? next(current) : next;
+      app.drawings.preview(drawingId, resolved);
+      return resolved;
+    });
   };
   const derived = def.derivedFields;
   const values = derived ? { ...draft.style, ...derived.get(draft, symbol) } : draft.style;
   const setField = (key: string, value: unknown) =>
-    apply(
+    apply((current) =>
       derived?.keys.includes(key)
-        ? derived.set(draft, key, value, symbol)
-        : { ...draft, style: { ...draft.style, [key]: value } },
+        ? derived.set(current, key, value, symbol)
+        : { ...current, style: { ...current.style, [key]: value } },
     );
-  const setPoint = (i: number, p: Partial<ChartPoint>) => {
-    const points = draft.points.map((q, j) => (j === i ? { ...q, ...p } : q));
-    apply({ ...draft, points: def.normalizePoints ? def.normalizePoints(points) : points });
-  };
+  const setPoint = (i: number, p: Partial<ChartPoint>) =>
+    apply((current) => {
+      const points = current.points.map((q, j) => (j === i ? { ...q, ...p } : q));
+      return { ...current, points: def.normalizePoints ? def.normalizePoints(points) : points };
+    });
 
   const cancel = () => {
     app.drawings.preview(drawingId, before);
@@ -83,10 +88,10 @@ export function DrawingSettingsDialog({
                 pushToast(`Saved as default for ${def.label}`);
               } else if (e.target.value === 'reset') {
                 app.drawings.defaults.reset(def.id);
-                apply({
-                  ...draft,
+                apply((current) => ({
+                  ...current,
                   style: app.drawings.defaults.resolve(def, app.engine.getTheme()),
-                });
+                }));
               }
             }}
           >

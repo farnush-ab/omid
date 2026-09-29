@@ -32,7 +32,7 @@ export function IconButton({
         type="button"
         aria-label={label}
         aria-pressed={active}
-        className={`inline-flex h-8 min-w-8 items-center justify-center gap-1 rounded-md px-1.5 text-fg transition-colors hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent disabled:pointer-events-none disabled:opacity-35 ${active ? 'text-accent' : ''} ${className}`}
+        className={`inline-flex h-8 min-w-8 items-center justify-center gap-1 rounded-md px-1.5 text-fg transition-colors hover:bg-hover focus-visible:outline-2 focus-visible:outline-accent disabled:pointer-events-none disabled:opacity-35 ${active ? 'bg-hover text-accent ring-1 ring-accent/50' : ''} ${className}`}
         {...rest}
       >
         {icon || path ? (

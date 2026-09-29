@@ -18,6 +18,7 @@ import { FloatingToolbar } from '../drawing/FloatingToolbar';
 import { TextEditorOverlay } from '../drawing/TextEditorOverlay';
 import { ChartControls } from './ChartControls';
 import { Legend } from './Legend';
+import { VolumePaneControls } from './VolumePaneControls';
 
 /** Reads optional URL overrides: ?provider=synthetic, ?bars=50000 (stress test). */
 function urlOptions() {
@@ -75,6 +76,7 @@ export default function ChartWorkspace() {
             {app ? (
               <>
                 <Legend />
+                <VolumePaneControls />
                 <ChartControls />
                 <FloatingToolbar />
                 <TextEditorOverlay />

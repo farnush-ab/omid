@@ -82,7 +82,7 @@ export class ViewportController {
     this.animation = null;
     this.time.scrollBy(dx);
     this.time.clamp(this.length);
-    if (!this.price.autoScale && dy !== 0) this.price.scrollBy(-dy);
+    if (!this.price.autoScale && dy !== 0) this.price.scrollBy(dy);
   }
 
   scrollBars(bars: number): void {
