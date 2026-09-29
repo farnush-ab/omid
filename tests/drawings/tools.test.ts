@@ -60,7 +60,7 @@ describe('Text', () => {
     d.moveAnchor(1, at(edge.x + 150, edge.y), dc, { shift: false });
     expect(d.style.wrap).toBe(true);
     expect(Number(d.style.boxWidth)).toBeGreaterThan(150);
-    expect(d.textRect!(dc).width).toBeCloseTo(Number(d.style.boxWidth), 6);
+    expect(d.textRect!(dc)!.width).toBeCloseTo(Number(d.style.boxWidth), 6);
   });
 
   it('hit-tests inside a rotated box', () => {
