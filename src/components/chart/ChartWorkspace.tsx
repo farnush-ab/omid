@@ -14,6 +14,7 @@ import { TopToolbar } from '../toolbar/TopToolbar';
 import { ContextMenu } from '../drawing/ContextMenu';
 import { DrawingToolbar } from '../drawing/DrawingToolbar';
 import { FloatingToolbar } from '../drawing/FloatingToolbar';
+import { TextEditorOverlay } from '../drawing/TextEditorOverlay';
 import { ChartControls } from './ChartControls';
 import { Legend } from './Legend';
 
@@ -72,6 +73,7 @@ export default function ChartWorkspace() {
                 <Legend />
                 <ChartControls />
                 <FloatingToolbar />
+                <TextEditorOverlay />
                 <IntervalTyperOverlay />
               </>
             ) : null}

@@ -153,3 +153,45 @@ export function drawInfoBox(
   lines.forEach((l, i) => ctx.fillText(l, x + padX, y + 4 + lh * (i + 0.5)));
   return { x, y, width: w, height: h };
 }
+
+/** Word-wrap with an arbitrary measure function (usable outside a canvas, e.g. hit-testing). */
+export function wrapWith(
+  measure: (s: string) => number,
+  text: string,
+  maxWidth: number | null,
+): string[] {
+  const out: string[] = [];
+  for (const para of text.split('\n')) {
+    if (maxWidth === null) {
+      out.push(para);
+      continue;
+    }
+    let line = '';
+    for (const word of para.split(/(\s+)/)) {
+      const candidate = line + word;
+      if (line && measure(candidate) > maxWidth) {
+        out.push(line.trimEnd());
+        line = word.trimStart();
+      } else line = candidate;
+    }
+    out.push(line);
+  }
+  return out;
+}
+
+/** Chaikin corner cutting — smooths freehand strokes. */
+export function chaikin(pts: readonly Point[], iterations: number): Point[] {
+  let cur = [...pts];
+  for (let k = 0; k < iterations && cur.length > 2; k++) {
+    const next: Point[] = [cur[0]!];
+    for (let i = 0; i < cur.length - 1; i++) {
+      const a = cur[i]!;
+      const b = cur[i + 1]!;
+      next.push({ x: a.x * 0.75 + b.x * 0.25, y: a.y * 0.75 + b.y * 0.25 });
+      next.push({ x: a.x * 0.25 + b.x * 0.75, y: a.y * 0.25 + b.y * 0.75 });
+    }
+    next.push(cur[cur.length - 1]!);
+    cur = next;
+  }
+  return cur;
+}

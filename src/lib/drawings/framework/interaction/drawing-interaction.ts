@@ -36,6 +36,8 @@ export class DrawingInteraction implements InteractionHandler {
   placement: PlacementSession | null = null;
   hover: HoverState = { id: null, anchor: null };
   private drag: Drag | null = null;
+  /** Text editing opens on pointer-up so the browser's mousedown focus can't steal it. */
+  private pendingTextEdit: string | null = null;
 
   constructor(private readonly m: DrawingManager) {}
 
@@ -93,7 +95,7 @@ export class DrawingInteraction implements InteractionHandler {
     this.m.add([drawing], !stay);
     if (session.def.editTextOnCreate) {
       this.m.select(drawing.id);
-      this.m.events.emit('text:edit', { id: drawing.id });
+      this.pendingTextEdit = drawing.id;
     }
   }
 
@@ -240,6 +242,10 @@ export class DrawingInteraction implements InteractionHandler {
   onPointerUp(e: ChartPointerEvent): void {
     const drag = this.drag;
     this.drag = null;
+    if (this.pendingTextEdit) {
+      this.m.events.emit('text:edit', { id: this.pendingTextEdit });
+      this.pendingTextEdit = null;
+    }
     if (this.placement) {
       const kind = this.placement.def.placement.kind;
       if (kind === 'freehand') return this.finishPlacement();
