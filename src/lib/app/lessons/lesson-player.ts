@@ -82,6 +82,7 @@ export class LessonPlayer {
       d.on('selection:changed', markModified),
       d.on('tool:changed', markModified),
       d.on('modes:changed', markModified),
+      d.on('placement:changed', markModified),
       app.events.on('themes:changed', markModified),
       e.on('resize', () => {
         if (this.mode === 'lesson' || !this.modified) this.sync(this.current, 'view');

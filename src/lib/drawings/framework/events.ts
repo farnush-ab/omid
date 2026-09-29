@@ -16,6 +16,8 @@ export interface DrawingEventMap {
   'drawing:updated': { readonly id: string };
   'tool:changed': { readonly tool: string | null };
   'modes:changed': DrawingModes;
+  /** The in-progress placement preview started, moved, got a point, finished or was cancelled. */
+  'placement:changed': { readonly active: boolean };
   'text:edit': { readonly id: string };
   'settings:open': { readonly id: string };
   contextmenu: { readonly id: string; readonly clientX: number; readonly clientY: number };

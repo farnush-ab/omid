@@ -77,12 +77,15 @@ export class ViewportController {
     return this.animation !== null;
   }
 
-  /** Drag-pan in pixels. Vertical pan only applies when auto-scale is off. */
+  /**
+   * Drag-pan in pixels: the content follows the pointer (drag down moves the chart down).
+   * Vertical pan only applies when auto-scale is off.
+   */
   panBy(dx: number, dy: number): void {
     this.animation = null;
     this.time.scrollBy(dx);
     this.time.clamp(this.length);
-    if (!this.price.autoScale && dy !== 0) this.price.scrollBy(-dy);
+    if (!this.price.autoScale && dy !== 0) this.price.scrollBy(dy);
   }
 
   scrollBars(bars: number): void {

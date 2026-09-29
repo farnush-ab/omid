@@ -67,7 +67,11 @@ export interface ChartSlice<V = unknown> {
   /** Also re-read on the recorder's periodic tick (state that changes without an event). */
   readonly poll?: boolean;
   capture(app: ChartApp): V;
-  watch(app: ChartApp, changed: () => void): () => void;
+  /**
+   * Subscribes to changes. `changed(true)` bypasses sampling throttles: use it for discrete
+   * steps (a drawing added or removed, a placement finished) so they land at the exact time.
+   */
+  watch(app: ChartApp, changed: (immediate?: boolean) => void): () => void;
   apply(app: ChartApp, value: V | undefined, ctx: ApplyContext): void;
 }
 
@@ -80,7 +84,7 @@ const stage: ChartSlice<StageValue> = {
     const { width, height } = app.engine.getLayout();
     return { w: Math.round(width), h: Math.round(height) };
   },
-  watch: (app, changed) => app.engine.events.on('resize', changed),
+  watch: (app, changed) => app.engine.events.on('resize', () => changed()),
   // Consumed by the player UI (letterbox), nothing to do on the chart itself.
   apply: () => {},
 };
@@ -110,9 +114,9 @@ const options: ChartSlice<ChartOptions> = {
   capture: (app) => ({ ...app.engine.getOptions() }),
   watch: (app, changed) => {
     const offs = [
-      app.engine.events.on('options:changed', changed),
+      app.engine.events.on('options:changed', () => changed()),
       // setData(resetView) turns auto-scale back on without an options event.
-      app.engine.events.on('data:changed', changed),
+      app.engine.events.on('data:changed', () => changed()),
     ];
     return () => offs.forEach((off) => off());
   },
@@ -125,7 +129,7 @@ const theme: ChartSlice<Theme> = {
   id: 'theme',
   mode: 'record',
   capture: (app) => app.engine.getTheme(),
-  watch: (app, changed) => app.engine.events.on('theme:changed', changed),
+  watch: (app, changed) => app.engine.events.on('theme:changed', () => changed()),
   apply: (app, v) => {
     if (v) app.themes.preview(v);
   },
@@ -137,7 +141,15 @@ const drawings: ChartSlice<SerializedDrawing[]> = {
   capture: (app) => app.drawings.serializeAll(),
   watch: (app, changed) => {
     const d = app.drawings.events;
-    const offs = [d.on('drawings:changed', changed), d.on('drawing:updated', changed)];
+    let count = app.drawings.store.size;
+    const offs = [
+      // Adds/removes are exact; live drags (updates) are sampled.
+      d.on('drawings:changed', ({ count: next }) => {
+        changed(next !== count);
+        count = next;
+      }),
+      d.on('drawing:updated', () => changed()),
+    ];
     return () => offs.forEach((off) => off());
   },
   apply: (app, v) => {
@@ -150,7 +162,7 @@ const modes: ChartSlice<DrawingModes> = {
   id: 'modes',
   mode: 'record',
   capture: (app) => app.drawings.modes,
-  watch: (app, changed) => app.drawings.events.on('modes:changed', changed),
+  watch: (app, changed) => app.drawings.events.on('modes:changed', () => changed()),
   apply: (app, v) => {
     if (v) app.drawings.setModes(v);
   },
@@ -160,7 +172,7 @@ const tool: ChartSlice<string | null> = {
   id: 'tool',
   mode: 'record',
   capture: (app) => app.drawings.tool,
-  watch: (app, changed) => app.drawings.events.on('tool:changed', changed),
+  watch: (app, changed) => app.drawings.events.on('tool:changed', () => changed()),
   apply: (app, v) => app.drawings.setTool(v ?? null),
 };
 
@@ -168,8 +180,37 @@ const selection: ChartSlice<string | null> = {
   id: 'selection',
   mode: 'record',
   capture: (app) => app.drawings.selected?.id ?? null,
-  watch: (app, changed) => app.drawings.events.on('selection:changed', changed),
+  watch: (app, changed) => app.drawings.events.on('selection:changed', () => changed()),
   apply: (app, v) => app.drawings.select(v && app.drawings.store.get(v) ? v : null),
+};
+
+/** Moves the points of the same in-progress shape; anything else snaps to the earlier value. */
+function lerpPlacement(a: unknown, b: unknown, alpha: number): unknown {
+  const pa = a as SerializedDrawing;
+  const pb = b as SerializedDrawing;
+  if (pa.id !== pb.id || pa.points.length !== pb.points.length) return a;
+  return {
+    ...pa,
+    points: pa.points.map((p, i) => ({
+      time: p.time + (pb.points[i]!.time - p.time) * alpha,
+      price: p.price + (pb.points[i]!.price - p.price) * alpha,
+    })),
+  };
+}
+
+/**
+ * The drawing being placed: the shape following the teacher's pointer between clicks, so a
+ * lesson shows how each drawing is made, not only its result. Null when nothing is placed
+ * (finished or cancelled — a cancelled placement leaves nothing behind).
+ */
+const placement: ChartSlice<SerializedDrawing | null> = {
+  id: 'placement',
+  mode: 'sample',
+  behavior: { continuous: true, interpolate: lerpPlacement, maxGapMs: MOTION_GAP_MS },
+  capture: (app) => app.drawings.placementPreview,
+  watch: (app, changed) =>
+    app.drawings.events.on('placement:changed', ({ active }) => changed(!active)),
+  apply: (app, v) => app.drawings.showPlacementPreview(v ?? null),
 };
 
 const view: ChartSlice<ViewValue> = {
@@ -195,8 +236,8 @@ const view: ChartSlice<ViewValue> = {
   },
   watch: (app, changed) => {
     const offs = [
-      app.engine.events.on('viewport:changed', changed),
-      app.engine.events.on('resize', changed),
+      app.engine.events.on('viewport:changed', () => changed()),
+      app.engine.events.on('resize', () => changed()),
     ];
     return () => offs.forEach((off) => off());
   },
@@ -227,7 +268,7 @@ const cursor: ChartSlice<CursorValue | null> = {
     if (!c || width <= 0 || height <= 0) return null;
     return { x: roundSig(c.x / width, 5), y: roundSig(c.y / height, 5) };
   },
-  watch: (app, changed) => app.engine.events.on('crosshair:moved', changed),
+  watch: (app, changed) => app.engine.events.on('crosshair:moved', () => changed()),
   apply: (app, v) => {
     const e = app.engine;
     if (!v) return e.setCrosshair(null);
@@ -255,6 +296,7 @@ export const CHART_SLICES: readonly ChartSlice[] = [
   modes,
   tool,
   selection,
+  placement,
   view,
   cursor,
 ] as readonly ChartSlice[];

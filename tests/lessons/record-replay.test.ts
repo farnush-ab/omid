@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createIdGenerator, createRng } from '@/lib/core';
+import { createIdGenerator, createRng, type ChartPointerEvent } from '@/lib/core';
 import { dataProviderRegistry, FALLBACK_PROVIDER_ID } from '@/lib/data';
+import { drawingRegistry } from '@/lib/drawings';
 import { MemoryStorage } from '@/lib/storage';
 import { CapturingProvider, StorageLessonRepository, type LessonState } from '@/lib/lessons';
 import {
@@ -300,5 +301,185 @@ describe('crash recovery', () => {
     await session.discard();
     expect(await repo.listDrafts()).toHaveLength(0);
     expect(await repo.list()).toHaveLength(0);
+  });
+});
+
+/** Drives the drawing tools through the same handler the pointer router uses. */
+function pointer(app: ChartApp) {
+  const handler = app.engine.interactionHandlers.find((h) => h.id === 'drawings')!;
+  const ev = (x: number, y: number): ChartPointerEvent => {
+    const c = app.engine.coords;
+    return {
+      x,
+      y,
+      clientX: x,
+      clientY: y,
+      region: 'price-pane',
+      pointerType: 'mouse',
+      button: 0,
+      shift: false,
+      ctrl: false,
+      alt: false,
+      index: c.xToIndex(x),
+      time: c.xToTime(x),
+      price: c.yToPrice(y),
+    };
+  };
+  return {
+    down: (x: number, y: number) => handler.onPointerDown?.(ev(x, y)),
+    drag: (x: number, y: number) => handler.onPointerMove?.(ev(x, y)),
+    up: (x: number, y: number) => handler.onPointerUp?.(ev(x, y)),
+    hover: (x: number, y: number) => handler.onHover?.(ev(x, y)),
+    dbl: (x: number, y: number) => handler.onDoubleClick?.(ev(x, y)),
+    cancel: () => handler.onCancel?.(),
+  };
+}
+
+describe('drawings are replayed as a process', () => {
+  interface Mid {
+    readonly t: number;
+    readonly tool: string;
+    readonly points: number;
+  }
+
+  async function recordAllTools() {
+    const teacher = await createTeacher();
+    const { app, clock, frames } = teacher;
+    const repo = new StorageLessonRepository(new MemoryStorage());
+    const session = new RecordingSession({
+      app,
+      repository: repo,
+      provider: teacher.provider,
+      clock,
+      timer: teacher.timer,
+      newId: createIdGenerator(createRng(6)),
+      audio: null,
+    });
+    await session.start();
+    const p = pointer(app);
+    const mids: Mid[] = [];
+    const finished: Array<{ t: number; tool: string; count: number }> = [];
+    const tick = (ms: number) => {
+      clock.advance(ms);
+      frames.flush();
+    };
+    const noteMid = (tool: string) => {
+      const preview = app.drawings.placementPreview;
+      if (preview) mids.push({ t: session.elapsed, tool, points: preview.points.length });
+    };
+
+    let y = 150;
+    for (const def of drawingRegistry.list()) {
+      app.drawings.setTool(def.id);
+      tick(200);
+      const kind = def.placement.kind;
+      p.down(200, y);
+      if (kind === 'single') {
+        p.up(200, y);
+      } else if (kind === 'freehand') {
+        for (let i = 1; i <= 12; i++) {
+          tick(50);
+          p.drag(200 + i * 15, y + (i % 3) * 6);
+          if (i === 6) noteMid(def.id);
+        }
+        p.up(380, y);
+      } else {
+        p.up(200, y);
+        // The shape follows the pointer between clicks.
+        for (let click = 1; app.drawings.placementPreview && click <= 4; click++) {
+          for (let i = 1; i <= 6; i++) {
+            tick(50);
+            p.hover(200 + click * 80 + i * 5, y + click * 20 + i * 3);
+            if (i === 3) noteMid(def.id);
+          }
+          const x = 200 + click * 80 + 30;
+          const cy = y + click * 20 + 18;
+          p.down(x, cy);
+          p.up(x, cy);
+          if (kind === 'polyline' && click === 2) p.dbl(x, cy);
+        }
+      }
+      tick(10);
+      expect(app.drawings.placementPreview, def.id).toBeNull();
+      finished.push({ t: session.elapsed, tool: def.id, count: app.drawings.store.size });
+      app.drawings.setTool(null);
+      y += 40;
+    }
+
+    // A cancelled placement leaves nothing behind.
+    app.drawings.setTool('trend-line');
+    tick(100);
+    p.down(600, 200);
+    p.up(600, 200);
+    tick(60);
+    p.hover(650, 260);
+    tick(60);
+    p.hover(700, 280);
+    noteMid('cancelled');
+    tick(60);
+    app.drawings.escape();
+    tick(300);
+    const afterCancel = { t: session.elapsed, count: app.drawings.store.size };
+
+    const meta = await session.stop('Drawing lesson');
+    return { lesson: (await repo.load(meta.id))!, mids, finished, afterCancel, clock };
+  }
+
+  it('shows the half-drawn shape at any time during placement, for every tool', async () => {
+    const rec = await recordAllTools();
+    const tools = new Set(rec.mids.map((m) => m.tool));
+    for (const def of drawingRegistry.list())
+      if (def.placement.kind !== 'single') expect(tools.has(def.id), def.id).toBe(true);
+
+    const { app, frames } = createStudent(rec.clock);
+    const player = new LessonPlayer(
+      app,
+      rec.lesson,
+      new VirtualMedia(rec.lesson.timeline.duration, rec.clock.now),
+      frames,
+    );
+    // Seek into the middle of each gesture, in reverse order too.
+    for (const m of [...rec.mids, ...[...rec.mids].reverse()]) {
+      player.seek(m.t);
+      const ghost = app.drawings.placementGhost;
+      expect(ghost?.type, `${m.tool} @${m.t}`).toBe(m.tool === 'cancelled' ? 'trend-line' : m.tool);
+      expect(ghost!.points.length).toBe(m.points);
+    }
+    for (const f of rec.finished) {
+      player.seek(f.t);
+      expect(app.drawings.placementGhost, f.tool).toBeNull();
+      expect(app.drawings.store.size, f.tool).toBe(f.count);
+      expect(app.drawings.store.all().at(-1)!.type).toBe(f.tool);
+    }
+    player.seek(rec.afterCancel.t);
+    expect(app.drawings.placementGhost).toBeNull();
+    expect(app.drawings.store.size).toBe(rec.afterCancel.count);
+  });
+
+  it('moves the preview smoothly between samples during playback', async () => {
+    const rec = await recordAllTools();
+    const { app, frames } = createStudent(rec.clock);
+    const player = new LessonPlayer(
+      app,
+      rec.lesson,
+      new VirtualMedia(rec.lesson.timeline.duration, rec.clock.now),
+      frames,
+    );
+    const ops = rec.lesson.timeline.ops.filter((o) => o.s === 'placement' && o.v);
+    const i = ops.findIndex(
+      (o, k) =>
+        k + 1 < ops.length &&
+        ops[k + 1]!.t - o.t <= 60 &&
+        (o.v as { id: string }).id === (ops[k + 1]!.v as { id: string }).id,
+    );
+    const a = ops[i]!;
+    const b = ops[i + 1]!;
+    type Snap = { points: Array<{ time: number; price: number }> };
+    player.seek((a.t + b.t) / 2);
+    const last = (s: Snap) => s.points.at(-1)!.price;
+    const mid = last(app.drawings.placementGhost!.serialize() as unknown as Snap);
+    const [pa, pb] = [last(a.v as Snap), last(b.v as Snap)];
+    expect(mid).toBeGreaterThan(Math.min(pa, pb) - 1e-9);
+    expect(mid).toBeLessThan(Math.max(pa, pb) + 1e-9);
   });
 });

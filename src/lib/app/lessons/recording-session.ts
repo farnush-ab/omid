@@ -110,11 +110,11 @@ export class RecordingSession {
     this.clock.start();
     this.recorder.begin(captureChartState(app));
     for (const slice of CHART_SLICES) {
-      const changed = () => {
+      const changed = (immediate = false) => {
         if (this.status !== 'recording' && this.status !== 'paused') return;
         if (slice.id === 'market') this.captureDisplayed();
         const value = slice.capture(app);
-        if (slice.mode === 'sample') this.recorder.sample(slice.id, value);
+        if (slice.mode === 'sample' && !immediate) this.recorder.sample(slice.id, value);
         else this.recorder.record(slice.id, value);
       };
       this.offs.push(slice.watch(app, changed));
