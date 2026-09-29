@@ -47,6 +47,13 @@ export const ICONS = {
   calendar: 'M4 6h16v14H4zM4 10h16M8 3v4M16 3v4',
   shuffle: 'M3 7h4l10 10h4M17 7h4M3 17h4l3-3M14 10l3-3M18 4l3 3-3 3M18 14l3 3-3 3',
   first: 'M18 18l-6-6 6-6M8 6v12',
+  record: 'M12 6a6 6 0 1 0 0 12 6 6 0 0 0 0-12z',
+  stop: 'M6 6h12v12H6z',
+  mic: 'M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3zM5 11a7 7 0 0 0 14 0M12 18v3',
+  micOff: 'M9 9v3a3 3 0 0 0 5.1 2.1M15 9.3V6a3 3 0 0 0-5.9-.8M5 11a7 7 0 0 0 11.7 5.2M19 11a7 7 0 0 1-.4 2.3M12 18v3M3 3l18 18',
+  edit: 'M16 3l5 5L9 20H4v-5z',
+  back10: 'M3 12a9 9 0 1 0 3-6.7M3 4v5h5',
+  fwd10: 'M21 12a9 9 0 1 1-3-6.7M21 4v5h-5',
 } as const;
 
 export type IconName = keyof typeof ICONS;

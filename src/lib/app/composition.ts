@@ -68,3 +68,17 @@ export function createBrowserDependencies(opts: BrowserDependencyOptions = {}): 
     provider,
   };
 }
+
+/**
+ * Dependencies of a lesson player: market data only from the lesson, in-memory storage (the
+ * student's session never touches saved preferences or drawings) and a fixed RNG seed.
+ */
+export function createPlaybackDependencies(provider: DataProvider): AppDependencies {
+  return {
+    runtime: createBrowserRuntime(),
+    clock: systemClock,
+    rng: createRng(1),
+    storage: new MemoryStorage(),
+    provider,
+  };
+}

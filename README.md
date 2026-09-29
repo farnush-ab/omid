@@ -13,6 +13,9 @@ only for UI state.
   persistence, JSON import/export and schema-driven settings dialogs.
 - Bar Replay with partial higher-timeframe candles, 0.1×–10× speeds, and live position P&L.
 - Light and dark themes plus a full theme editor with live preview, import and export.
+- **Lessons**: record your voice while you work on the chart, then play it back in sync with
+  the chart. Pause at any moment to explore; the app opens on the lesson library. See
+  [docs/LESSONS.md](docs/LESSONS.md).
 - Layered canvases with dirty flags, viewport culling and level-of-detail decimation. With 50k
   candles on screen, a frame costs about 5 ms of JS.
 
@@ -47,7 +50,8 @@ src/lib/core      engine, scales, viewport, renderers, layers, events, commands 
 src/lib/series    chart types (Candlestick)              ┐
 src/lib/drawings  drawing framework + 8 tools            │ domain: depend on core only
 src/lib/replay    replay FSM, session, controller        │
-src/lib/themes    built-in themes, validation            ┘
+src/lib/themes    built-in themes, validation            │
+src/lib/lessons   lesson timeline, keyframes, codec      ┘
 src/lib/data      Binance / synthetic / fallback providers   ┐ infrastructure behind
 src/lib/storage   IndexedDB / localStorage / memory, migrations ┘ DataProvider / StorageAdapter
 src/lib/app       composition root, services, shortcuts

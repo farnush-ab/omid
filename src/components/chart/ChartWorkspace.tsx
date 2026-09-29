@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { ChartApp, createBrowserDependencies } from '@/lib/app';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { ChartApp, createBrowserDependencies, type AppDependencies } from '@/lib/app';
 import { DialogHost } from '../dialogs/DialogHost';
 import { useGlobalKeyboard } from '../hooks/useGlobalKeyboard';
 import { useThemeCssVars } from '../hooks/useThemeCssVars';
@@ -31,31 +31,45 @@ function urlOptions() {
   };
 }
 
+export interface ChartWorkspaceProps {
+  /** Decorates the browser dependencies before the app is created (e.g. data capture). */
+  readonly wrapDeps?: (deps: AppDependencies) => AppDependencies;
+  /** Called with the app once created, and with null when it is destroyed. */
+  readonly onApp?: (app: ChartApp | null) => void;
+  /** Rendered below the chart, above the replay bar (e.g. the lesson recorder bar). */
+  readonly footer?: ReactNode;
+}
+
 /**
  * Client-only application shell. Creates the ChartApp in an effect and destroys it on unmount
  * (safe under React Strict Mode double-mounting). Chart state never enters React state.
  */
-export default function ChartWorkspace() {
+export default function ChartWorkspace({ wrapDeps, onApp, footer }: ChartWorkspaceProps = {}) {
   const chartRef = useRef<HTMLDivElement>(null);
   const [app, setApp] = useState<ChartApp | null>(null);
+  // Creation-time callbacks: the app is created once per mount, later prop changes are ignored.
+  const [init] = useState(() => ({ wrapDeps, onApp }));
 
   useEffect(() => {
     const el = chartRef.current;
     if (!el) return;
     const opts = urlOptions();
-    const instance = new ChartApp(el, createBrowserDependencies(opts.deps), opts.app);
+    const base = createBrowserDependencies(opts.deps);
+    const instance = new ChartApp(el, init.wrapDeps ? init.wrapDeps(base) : base, opts.app);
     const disconnect = connectBridge(instance);
     // Dev-only handle for debugging and the e2e performance script.
     if (process.env.NODE_ENV !== 'production')
       (window as unknown as { __chartApp?: ChartApp }).__chartApp = instance;
     setApp(instance);
+    init.onApp?.(instance);
     void instance.start();
     return () => {
+      init.onApp?.(null);
       disconnect();
       instance.destroy();
       setApp(null);
     };
-  }, []);
+  }, [init]);
 
   useGlobalKeyboard(app);
   useThemeCssVars();
@@ -84,6 +98,7 @@ export default function ChartWorkspace() {
             <LoadingOverlay />
           </main>
         </div>
+        {footer}
         {app ? <ReplayBar /> : null}
         {app ? (
           <>
