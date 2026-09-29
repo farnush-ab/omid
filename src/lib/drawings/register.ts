@@ -1,8 +1,10 @@
 import { drawingRegistry } from './framework/registry';
 import { curveTool } from './tools/curve';
 import { highlighterTool } from './tools/highlighter';
+import { longPositionTool } from './tools/long-position';
 import { pathTool } from './tools/path';
 import { rectangleTool } from './tools/rectangle';
+import { shortPositionTool } from './tools/short-position';
 import { textTool } from './tools/text';
 import { trendLineTool } from './tools/trend-line';
 
@@ -16,4 +18,6 @@ drawingRegistry
   .register(pathTool)
   .register(curveTool)
   .register(textTool)
-  .register(highlighterTool);
+  .register(highlighterTool)
+  .register(longPositionTool)
+  .register(shortPositionTool);

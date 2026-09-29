@@ -1,7 +1,7 @@
 export * from './types';
 export { BaseDrawing } from './base-drawing';
 export { DrawingManager, type ZOrder } from './drawing-manager';
-export { DrawingRegistry, drawingRegistry } from './registry';
+export { DrawingRegistry, drawingRegistry, definitionSchemaValues } from './registry';
 export { DrawingStore } from './drawing-store';
 export {
   AddDrawingsCommand,

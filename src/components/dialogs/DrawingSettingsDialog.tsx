@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { fromDateTimeLocalValue, toDateTimeLocalValue } from '@/lib/core';
 import { drawingRegistry, type ChartPoint, type SerializedDrawing } from '@/lib/drawings';
 import { SchemaForm } from '../schema-form/SchemaForm';
 import { useApp } from '../state/app-context';
@@ -9,13 +8,12 @@ import { useUiStore } from '../state/ui-store';
 import { Button } from '../ui/Button';
 import { Dialog } from '../ui/Dialog';
 import { Tabs } from '../ui/Tabs';
+import { CoordinatesTab } from './CoordinatesTab';
 
 const COORDS_TAB = 'coordinates';
-const inputCls =
-  'h-8 rounded-md border border-line bg-transparent px-2 text-[13px] text-fg outline-none focus:border-accent';
 
 /**
- * Per-drawing settings with Style tab(s) from the tool's schema and an auto-generated
+ * Per-drawing settings: the tool's schema tabs (plus derived fields) and an auto-generated
  * Coordinates tab. Edits preview live; OK commits one undoable step, Cancel restores.
  */
 export function DrawingSettingsDialog({
@@ -39,17 +37,24 @@ export function DrawingSettingsDialog({
   );
   const [tab, setTab] = useState(initialTab ?? tabs[0]?.id ?? COORDS_TAB);
   if (!drawing || !def || !draft || !before) return null;
-  const coords = app.engine.coords;
   const symbol = app.engine.getSymbol();
 
   const apply = (next: SerializedDrawing) => {
     setDraft(next);
     app.drawings.preview(drawingId, next);
   };
-  const setStyle = (key: string, value: unknown) =>
-    apply({ ...draft, style: { ...draft.style, [key]: value } });
-  const setPoint = (i: number, p: Partial<ChartPoint>) =>
-    apply({ ...draft, points: draft.points.map((q, j) => (j === i ? { ...q, ...p } : q)) });
+  const derived = def.derivedFields;
+  const values = derived ? { ...draft.style, ...derived.get(draft, symbol) } : draft.style;
+  const setField = (key: string, value: unknown) =>
+    apply(
+      derived?.keys.includes(key)
+        ? derived.set(draft, key, value, symbol)
+        : { ...draft, style: { ...draft.style, [key]: value } },
+    );
+  const setPoint = (i: number, p: Partial<ChartPoint>) => {
+    const points = draft.points.map((q, j) => (j === i ? { ...q, ...p } : q));
+    apply({ ...draft, points: def.normalizePoints ? def.normalizePoints(points) : points });
+  };
 
   const cancel = () => {
     app.drawings.preview(drawingId, before);
@@ -65,7 +70,7 @@ export function DrawingSettingsDialog({
     <Dialog
       title={def.label}
       onClose={cancel}
-      width={560}
+      width={580}
       footer={
         <>
           <select
@@ -102,55 +107,15 @@ export function DrawingSettingsDialog({
       <Tabs tabs={tabs} active={current.id} onChange={setTab} />
       <div role="tabpanel" className="min-h-[320px]">
         {current.id === COORDS_TAB ? (
-          <div className="flex flex-col gap-3 px-5 py-4">
-            {draft.points.map((p, i) => (
-              <fieldset key={i} className="flex flex-wrap items-center gap-2">
-                <legend className="mb-1 w-full text-[11px] font-semibold uppercase tracking-wider text-muted">
-                  {def.pointLabels?.[i] ?? `Point ${i + 1}`}
-                </legend>
-                <label className="flex items-center gap-1.5 text-xs text-muted">
-                  Price
-                  <input
-                    type="number"
-                    step={symbol.tickSize}
-                    className={`${inputCls} w-32`}
-                    value={Number(p.price.toFixed(symbol.pricePrecision))}
-                    onChange={(e) =>
-                      Number.isFinite(e.target.valueAsNumber) &&
-                      setPoint(i, { price: e.target.valueAsNumber })
-                    }
-                  />
-                </label>
-                <label className="flex items-center gap-1.5 text-xs text-muted">
-                  Bar
-                  <input
-                    type="number"
-                    step={1}
-                    className={`${inputCls} w-24`}
-                    value={Math.round(coords.timeToIndex(p.time))}
-                    onChange={(e) =>
-                      Number.isFinite(e.target.valueAsNumber) &&
-                      setPoint(i, { time: coords.indexToTime(e.target.valueAsNumber) })
-                    }
-                  />
-                </label>
-                <label className="flex items-center gap-1.5 text-xs text-muted">
-                  Time
-                  <input
-                    type="datetime-local"
-                    className={`${inputCls} w-52`}
-                    value={toDateTimeLocalValue(p.time)}
-                    onChange={(e) => {
-                      const t = fromDateTimeLocalValue(e.target.value);
-                      if (t !== null) setPoint(i, { time: t });
-                    }}
-                  />
-                </label>
-              </fieldset>
-            ))}
-          </div>
+          <CoordinatesTab
+            def={def}
+            draft={draft}
+            coords={app.engine.coords}
+            symbol={symbol}
+            onPoint={setPoint}
+          />
         ) : (
-          <SchemaForm groups={current.groups} values={draft.style} onChange={setStyle} />
+          <SchemaForm groups={current.groups} values={values} onChange={setField} />
         )}
       </div>
     </Dialog>

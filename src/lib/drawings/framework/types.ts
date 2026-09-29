@@ -130,6 +130,11 @@ export interface DrawingToolDefinition<S extends DrawingStyle = DrawingStyle> {
   /** Style keys shown in the floating toolbar (colour/opacity/width/style fields). */
   readonly toolbar: readonly string[];
   readonly pointLabels?: readonly string[];
+  /** Which coordinates the Coordinates tab shows per point (default: time and price). */
+  readonly coordinateFields?: ReadonlyArray<readonly CoordinateField[]>;
+  readonly derivedFields?: DerivedFields;
+  /** Re-establishes invariants after points were edited directly (Coordinates tab). */
+  normalizePoints?(points: readonly ChartPoint[]): ChartPoint[];
   /** Style keys that take their default from the active theme. */
   readonly themeDefaults?: Readonly<Partial<Record<keyof S & string, ThemeColorKey>>>;
   /** Hold Shift to constrain the moved anchor to 45° steps. */
@@ -142,5 +147,22 @@ export interface DrawingToolDefinition<S extends DrawingStyle = DrawingStyle> {
   finalizePoints?(points: readonly ChartPoint[], dc: DrawingContext): ChartPoint[];
   create(init: DrawingInit<S>): Drawing<S>;
 }
+
+/**
+ * Settings fields computed from the drawing rather than stored in its style (e.g. a position's
+ * target in ticks). The settings dialog reads them with `get` and writes through `set`.
+ */
+export interface DerivedFields {
+  readonly keys: readonly string[];
+  get(snapshot: SerializedDrawing, symbol: SymbolInfo): Record<string, string | number | boolean>;
+  set(
+    snapshot: SerializedDrawing,
+    key: string,
+    value: unknown,
+    symbol: SymbolInfo,
+  ): SerializedDrawing;
+}
+
+export type CoordinateField = 'time' | 'price';
 
 export type AnyToolDefinition = DrawingToolDefinition<DrawingStyle>;

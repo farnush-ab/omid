@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { schemaFields, validateSchema } from '@/lib/core';
 import {
+  definitionSchemaValues,
   deserializeDrawing,
   drawingRegistry,
   type AnyToolDefinition,
@@ -45,7 +46,7 @@ describe.each(tools.map((t) => [t.id, t] as const))('drawing contract: %s', (_id
     def.create({ id: 'd1', points: samplePoints(def), style: { ...def.defaults } });
 
   it('has a valid settings schema, toolbar and defaults', () => {
-    expect(validateSchema(def.settings, def.defaults)).toEqual([]);
+    expect(validateSchema(def.settings, definitionSchemaValues(def))).toEqual([]);
     expect(def.styleSchema.safeParse(def.defaults).success).toBe(true);
     const keys = new Set(schemaFields(def.settings).map((f) => f.key));
     for (const k of def.toolbar) expect(keys.has(k)).toBe(true);
