@@ -9,3 +9,4 @@
 | 0005 | [Position tool evaluation rules](0005-position-tool-rules.md)      |
 | 0006 | [Replay state machine](0006-replay-design.md)                      |
 | 0007 | [Versioned persistence](0007-versioned-persistence.md)             |
+| 0008 | [Performance budget](0008-performance-budget.md)                   |

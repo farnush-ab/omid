@@ -76,6 +76,7 @@ export class ChartEngine {
   private layout: ChartLayout = computeLayout(0, 0, 0, null);
   private size = { width: 0, height: 0, dpr: 1 };
   private nearLeftEmitted = false;
+  private lastFrame: FrameState | null = null;
 
   constructor(private readonly init: ChartEngineInit) {
     this.options = { ...DEFAULT_CHART_OPTIONS, ...init.options };
@@ -352,12 +353,20 @@ export class ChartEngine {
   private renderFrame(mask: number): void {
     if (this.size.width <= 0 || this.size.height <= 0) return;
     const animating = this.viewport.step();
+    // Crosshair-only frames (the high-frequency case) reuse the last frame's layout, scales
+    // and ticks instead of re-running auto-scale and tick selection.
+    if (mask === LayerMask.overlay && !animating && this.lastFrame) {
+      this.lastFrame = { ...this.lastFrame, crosshair: this.crosshair };
+      this.layers.render(mask, this.lastFrame);
+      return;
+    }
     let frame = this.buildFrame();
     if (frame.relayout) {
       frame = this.buildFrame();
       mask = ALL_LAYERS;
     }
     this.layout = frame.frame.layout;
+    this.lastFrame = frame.frame;
     this.layers.render(animating ? ALL_LAYERS : mask, frame.frame);
     if (animating) this.viewportChanged();
   }

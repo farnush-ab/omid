@@ -53,6 +53,7 @@ export function ChartSettingsDialog({
           <label className="flex items-center gap-2 text-[13px] text-muted">
             Theme
             <select
+              aria-label="Theme"
               className="h-8 rounded-md border border-line bg-panel px-2 text-fg"
               value={theme.id}
               onChange={(e) => app.themes.setActive(e.target.value)}

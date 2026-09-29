@@ -59,7 +59,8 @@ export class TimeWeights {
   private validUpTo = 0;
   private utc = false;
   private readonly unsubscribe: () => void;
-  private readonly buckets: number[][] = Array.from({ length: MAX_WEIGHT + 1 }, () => []);
+  /** Ascending bar indices per weight, maintained incrementally. */
+  private readonly levels: number[][] = Array.from({ length: MAX_WEIGHT + 1 }, () => []);
 
   constructor(private readonly series: SeriesData) {
     this.unsubscribe = series.onChange((c: SeriesChange) => {
@@ -91,24 +92,40 @@ export class TimeWeights {
       next.set(this.weights.subarray(0, this.validUpTo));
       this.weights = next;
     }
+    for (const list of this.levels) {
+      while (list.length > 0 && list[list.length - 1]! >= this.validUpTo) list.pop();
+    }
     const t = this.series.time;
     for (let i = this.validUpTo; i < n; i++) {
-      this.weights[i] = weightBetween(i > 0 ? t[i - 1]! : null, t[i]!, this.utc);
+      const w = weightBetween(i > 0 ? t[i - 1]! : null, t[i]!, this.utc);
+      this.weights[i] = w;
+      this.levels[w]!.push(i);
     }
     this.validUpTo = n;
   }
 
-  /** Selects labelled ticks for bars [from, to] given an index->x mapping. */
+  /**
+   * Selects labelled ticks for bars [from, to]: most important first, at least `minSpacing`
+   * apart. Only walks the per-weight index lists inside the range, stopping once full.
+   */
   ticks(from: number, to: number, indexToX: (i: number) => number, minSpacing: number): TimeTick[] {
     this.sync();
-    for (const b of this.buckets) b.length = 0;
-    for (let i = Math.max(0, from); i <= to && i < this.series.length; i++) {
-      this.buckets[this.weights[i]!]!.push(i);
-    }
     const xs: number[] = [];
     const accepted: TimeTick[] = [];
-    for (let w = MAX_WEIGHT; w >= 0; w--) {
-      for (const i of this.buckets[w]!) {
+    const lo = Math.max(0, from);
+    const hi = Math.min(to, this.series.length - 1);
+    const xLo = indexToX(lo);
+    const xHi = indexToX(hi);
+    const capacity = Math.floor(Math.abs(xHi - xLo) / minSpacing) + 2;
+    for (
+      let w = MAX_WEIGHT;
+      w >= 0 && accepted.length < capacity && hasRoom(xs, xLo, xHi, minSpacing);
+      w--
+    ) {
+      const list = this.levels[w]!;
+      for (let j = lowerBound(list, lo); j < list.length && accepted.length < capacity; j++) {
+        const i = list[j]!;
+        if (i > hi) break;
         const x = indexToX(i);
         if (!fits(xs, x, minSpacing)) continue;
         insertSorted(xs, x);
@@ -122,6 +139,26 @@ export class TimeWeights {
     }
     return accepted.sort((a, b) => a.x - b.x);
   }
+}
+
+/** Whether any position in [xLo, xHi] is still >= minSpacing away from every accepted tick. */
+function hasRoom(sorted: readonly number[], xLo: number, xHi: number, minSpacing: number): boolean {
+  if (sorted.length === 0) return true;
+  if (sorted[0]! - xLo >= minSpacing || xHi - sorted[sorted.length - 1]! >= minSpacing) return true;
+  for (let i = 1; i < sorted.length; i++)
+    if (sorted[i]! - sorted[i - 1]! >= minSpacing * 2) return true;
+  return false;
+}
+
+function lowerBound(list: readonly number[], value: number): number {
+  let a = 0;
+  let b = list.length;
+  while (a < b) {
+    const m = (a + b) >>> 1;
+    if (list[m]! < value) a = m + 1;
+    else b = m;
+  }
+  return a;
 }
 
 function fits(sorted: number[], x: number, spacing: number): boolean {

@@ -30,13 +30,15 @@ export function renderCandles(ctx: CanvasRenderingContext2D, f: FrameState): voi
   for (const up of [true, false]) {
     if (options.showWicks) {
       ctx.fillStyle = up ? c.upWick : c.downWick;
+      ctx.beginPath();
       for (let i = visible.from; i <= visible.to; i++) {
         if (close[i]! >= open[i]! !== up) continue;
         const x = Math.round(timeScale.indexToX(i) * dpr);
         const yh = Math.round(toY(high[i]!));
         const yl = Math.round(toY(low[i]!));
-        ctx.fillRect(x - wickHalf, Math.min(yh, yl), wickW, Math.max(1, Math.abs(yl - yh)));
+        ctx.rect(x - wickHalf, Math.min(yh, yl), wickW, Math.max(1, Math.abs(yl - yh)));
       }
+      ctx.fill();
     }
     if (options.showBody || drawBorders) {
       for (let i = visible.from; i <= visible.to; i++) {
@@ -82,8 +84,10 @@ function renderDecimated(
     const bucket = close[last]! >= open[first]! ? cols.up : cols.down;
     bucket.push(col, Math.round(toY(hi)), Math.round(toY(lo)));
   };
+  const x0 = timeScale.indexToX(visible.from) * dpr;
+  const dx = timeScale.barSpacing * dpr;
   for (let i = visible.from; i <= visible.to; i++) {
-    const x = Math.round(timeScale.indexToX(i) * dpr);
+    const x = Math.round(x0 + (i - visible.from) * dx);
     if (x !== col) {
       flush();
       col = x;
@@ -103,10 +107,12 @@ function renderDecimated(
     [theme.colors.downBody, cols.down],
   ] as const) {
     ctx.fillStyle = color;
+    ctx.beginPath();
     for (let k = 0; k < arr.length; k += 3) {
       const yh = arr[k + 1]!;
       const yl = arr[k + 2]!;
-      ctx.fillRect(arr[k]!, Math.min(yh, yl), w, Math.max(1, Math.abs(yl - yh)));
+      ctx.rect(arr[k]!, Math.min(yh, yl), w, Math.max(1, Math.abs(yl - yh)));
     }
+    ctx.fill();
   }
 }

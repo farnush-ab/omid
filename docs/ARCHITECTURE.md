@@ -82,9 +82,10 @@ src/lib/replay/     replay-machine.ts (pure FSM), ReplaySession (data windowing)
 src/lib/themes/     ThemeRegistry, built-ins, theme validation (zod)
 src/lib/data/       BinanceProvider, SyntheticProvider, FallbackProvider, symbol catalogue, registry
 src/lib/storage/    IndexedDBStorage, LocalStorageStorage, MemoryStorage, envelopes, migrations/
-src/lib/app/        ChartApp (composition root), persistence, theme service, shortcut registry,
-                    UI-state bridge (engine events -> zustand store for panels)
-src/components/     React: shell, toolbars, dialogs, schema-form, replay bar, overlays
+src/lib/app/        ChartApp facade, composition root (DI), services (market data, themes,
+                    chart settings, drawing persistence, app state), shortcut registry + keyboard
+src/components/     React: shell, toolbars, dialogs, schema-form, replay bar, overlays,
+                    state/ (zustand UI store + the single event bridge)
 src/app/            layout.tsx, page.tsx, api/klines/route.ts
 ```
 
@@ -120,9 +121,9 @@ sequenceDiagram
   P-->>App: Candle[] (ascending)
   App->>E: setData(SeriesData)
   E-->>UI: bus 'data:changed' / 'viewport:changed'
-  E->>E: user pans to left edge -> bus 'viewport:needs-history'
+  E->>E: user pans near the oldest bar -> bus 'viewport:near-left-edge'
   App->>P: fetchBars({endTime: firstTime-1})
-  App->>E: prependData(older)
+  App->>App: SeriesData.prepend(older) (engine listens, keeps the view anchored)
   UI->>D: pick tool; pointer events flow E(interaction) -> D(handler)
   D->>App: CommandHistory.execute(AddDrawingCommand)
   App->>App: persistence autosave (debounced, per symbol)
@@ -138,8 +139,9 @@ the in-browser `SyntheticProvider` if the route itself is unreachable.
 1. Anything that changes calls `engine.invalidate(mask)` with a bitmask of layers.
 2. `RenderLoop` coalesces invalidations into a single `requestAnimationFrame` (injected
    `FrameScheduler`).
-3. On the frame, the engine recomputes layout and auto-scale once, then each **dirty** layer is
-   cleared and redrawn, bottom to top:
+3. On the frame, the engine builds the frame state once (layout, auto-scale, ticks), then each
+   **dirty** layer is cleared and redrawn, bottom to top. A frame whose only dirty layer is
+   `overlay` (crosshair movement) reuses the previous frame state entirely.
 
 | Layer        | Content                                                      | Typical invalidation     |
 | ------------ | ------------------------------------------------------------ | ------------------------ |
@@ -160,12 +162,33 @@ Performance techniques:
   whose bounding box misses the plot are skipped.
 - **Level of detail** — below ~2 px per bar the candle renderer switches to per-pixel-column
   decimation (min low / max high per column, one stroke per colour).
-- **Batched paths** — one `Path2D`-free `beginPath()` per colour and primitive type.
+- **Batched paths** — decimated columns and wicks are accumulated as `rect()`s into one path
+  per colour and filled once.
 - **Auto-scale in O(n/64)** — `RangeMinMax` keeps block min/max so visible-range queries don't
   scan every bar; it updates incrementally on replay appends.
-- **Time-axis weights** are computed once per data change (`Uint8Array`), tick selection per frame
-  only touches visible bars grouped by weight.
+- **Time-axis ticks** — each bar's calendar "weight" (year > month > day > 12h > …) is computed
+  once per data change and kept in per-weight index lists (incremental on appends). Per frame,
+  tick selection binary-searches each list for the visible range, most important first, and
+  stops as soon as no gap can fit another label (≈0.04 ms for 50k visible bars).
 - Device pixel ratio handled per surface; canvases are resized only on `ResizeObserver` events.
+
+### Measured (headless Chromium, 1600×900 @ DPR 2, all bars visible)
+
+| Bars   | Full redraw, JS time | Series layer | Crosshair-only frame |
+| ------ | -------------------- | ------------ | -------------------- |
+| 1 000  | 0.5 ms               | 0.1 ms       | 0.01 ms              |
+| 50 000 | 4.7 ms               | 3.0 ms       | 0.01 ms              |
+| 85 000 | 6.9 ms               | 5.5 ms       | 0.01 ms              |
+
+End-to-end interaction at DPR 1 holds 60 fps (p50 16.7 ms) with 50k candles in software-rendered
+headless Chromium; at DPR 2 there the frame time is dominated by rasterising five 3200×1800
+canvases and is the same for 1k and 50k bars (a GPU-backed browser removes that cost).
+
+**Web Worker (decision):** no Worker is used today. Profiling showed no main-thread
+aggregation or processing hot spot. Replay aggregates only the forming bucket, and data loads
+at most ~1k bars per request. `core/time/aggregate.ts` is pure and Worker-safe, so it can move
+to a Worker behind the same function signature if a future feature, such as client-side
+resampling of 1m data into long timeframes, needs it.
 
 ## 6. Coordinates
 
@@ -210,16 +233,19 @@ the shortcuts dialog contain no per-tool code.
 - **Commands** (`execute`/`undo`, optional `merge`) wrap every mutation: add/remove/update
   drawing (snapshot based), reorder, bulk lock/hide/remove, chart-option changes. Continuous
   gestures (drag an anchor) mutate a live preview and commit exactly one command on release.
-- **EventBus** is typed by `ChartEventMap`; `on()` returns an unsubscribe function.
+- **EventBus** is typed per module: `ChartEventMap` (engine), `DrawingEventMap`,
+  `ReplayEventMap`, `AppEventMap`. `on()` returns an unsubscribe function. The UI subscribes
+  in exactly one place (`components/state/bridge.ts`).
 - **Persistence**: every stored value is an `Envelope { kind, schemaVersion, data }`. Loading
   runs `migrate(kind, envelope)` through the ordered steps in `storage/migrations`, then zod
   validation, then the registry factory. Unknown drawing types are skipped (never crash).
 
 ## 10. Determinism
 
-`Clock` and `Rng` are injected. Replay advances by explicit ticks from an injected `Timer`, the
-synthetic provider is a pure function of `(symbol, timeframe, time, seed)`, and tests use
-`ManualClock` / fixed seeds. Replay never leaks future data: the engine only ever receives the
+`Clock`, `Rng`, `Timer` and `FrameScheduler` are injected (`lib/app/browser-runtime.ts` binds
+them to the browser). Replay advances by explicit ticks from the injected `Timer`, the
+synthetic provider is a pure function of `(symbol, timeframe, time, seed)`, and tests use fixed
+clocks, manual timers and fixed seeds. Replay never leaks future data: the engine only ever receives the
 revealed `SeriesData`, so auto-scale, legend, crosshair and position-tool evaluation cannot see
 hidden candles.
 
@@ -247,8 +273,11 @@ stateDiagram-v2
 `ReplaySession` keeps the replay cursor as a **time** (`cursorTime`, exclusive) plus a step
 resolution (`baseTimeframe`). Switching to a higher timeframe keeps the finer resolution, so the
 current higher-timeframe candle forms bar-by-bar from finer data; switching lower moves the
-resolution down. Completed bars before the replay start come from chart-timeframe data; bars
-formed during replay are aggregated from base data so nothing jumps when a bucket closes.
+resolution down (1W → 1M falls back to 1D, which nests into both). While stepping, a finer base
+merges each base bar into the forming candle, and a candle that completes during replay keeps its
+aggregated values, so nothing jumps when a bucket closes. After a timeframe switch, completed
+buckets come from the new timeframe's data and only the forming bucket is rebuilt from base bars.
+Base data is fetched forward in pages and prefetched when fewer than 200 bars remain buffered.
 
 ## 12. Next.js specifics
 

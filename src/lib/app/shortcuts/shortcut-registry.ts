@@ -11,6 +11,8 @@ export interface ShortcutDefinition<C = unknown> {
   /** Only active when this returns true. */
   readonly when?: (ctx: C) => boolean;
   readonly allowRepeat?: boolean;
+  /** Works but is not listed in the shortcuts dialog (e.g. variants documented elsewhere). */
+  readonly hidden?: boolean;
   run(ctx: C): void;
 }
 
@@ -35,6 +37,7 @@ export class ShortcutRegistry<C> extends Registry<ShortcutDefinition<C>> {
   byCategory(): Map<ShortcutCategory, ShortcutDefinition<C>[]> {
     const map = new Map<ShortcutCategory, ShortcutDefinition<C>[]>();
     for (const s of this.list()) {
+      if (s.hidden) continue;
       const list = map.get(s.category) ?? [];
       list.push(s);
       map.set(s.category, list);

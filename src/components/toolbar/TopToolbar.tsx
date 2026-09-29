@@ -8,6 +8,7 @@ import { Icon } from '../ui/Icon';
 import { IconButton } from '../ui/IconButton';
 import { Tooltip } from '../ui/Tooltip';
 import { TimeframeBar } from './TimeframeBar';
+import { MoreMenu } from './MoreMenu';
 import { ReplayButton } from './ReplayButton';
 
 export function TopToolbar() {
@@ -62,23 +63,26 @@ export function TopToolbar() {
           {source === 'synthetic' ? 'SYNTHETIC' : 'BINANCE'}
         </span>
       ) : null}
-      <IconButton
-        icon="palette"
-        label="Themes"
-        onClick={() => openDialog({ type: 'theme-editor' })}
-      />
-      <IconButton
-        icon="keyboard"
-        label="Keyboard shortcuts"
-        shortcut="?"
-        onClick={() => openDialog({ type: 'shortcuts' })}
-      />
+      <span className="hidden sm:contents">
+        <IconButton
+          icon="palette"
+          label="Themes"
+          onClick={() => openDialog({ type: 'theme-editor' })}
+        />
+        <IconButton
+          icon="keyboard"
+          label="Keyboard shortcuts"
+          shortcut="?"
+          onClick={() => openDialog({ type: 'shortcuts' })}
+        />
+      </span>
       <IconButton
         icon="settings"
         label="Chart settings"
         shortcut="Ctrl + ,"
         onClick={() => openDialog({ type: 'settings' })}
       />
+      <MoreMenu />
     </header>
   );
 }

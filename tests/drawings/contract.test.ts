@@ -130,3 +130,12 @@ describe.each(tools.map((t) => [t.id, t] as const))('drawing contract: %s', (_id
     }
   });
 });
+
+describe('new-tool template', () => {
+  it('is a valid, registrable definition (but not registered)', async () => {
+    const { exampleTool } = await import('@/lib/drawings/tools/_template');
+    const { DrawingRegistry } = await import('@/lib/drawings');
+    expect(() => new DrawingRegistry().register(exampleTool)).not.toThrow();
+    expect(drawingRegistry.has(exampleTool.id)).toBe(false);
+  });
+});

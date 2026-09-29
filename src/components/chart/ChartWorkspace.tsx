@@ -45,6 +45,9 @@ export default function ChartWorkspace() {
     const opts = urlOptions();
     const instance = new ChartApp(el, createBrowserDependencies(opts.deps), opts.app);
     const disconnect = connectBridge(instance);
+    // Dev-only handle for debugging and the e2e performance script.
+    if (process.env.NODE_ENV !== 'production')
+      (window as unknown as { __chartApp?: ChartApp }).__chartApp = instance;
     setApp(instance);
     void instance.start();
     return () => {

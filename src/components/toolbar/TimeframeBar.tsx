@@ -1,6 +1,6 @@
 'use client';
 
-import { TIMEFRAMES, TIMEFRAME_IDS } from '@/lib/core';
+import { TIMEFRAMES, TIMEFRAME_IDS, type TimeframeId } from '@/lib/core';
 import { useApp } from '../state/app-context';
 import { useUiStore } from '../state/ui-store';
 import { Tooltip } from '../ui/Tooltip';
@@ -10,26 +10,41 @@ export function TimeframeBar() {
   const app = useApp();
   const current = useUiStore((s) => s.timeframe);
   return (
-    <div
-      className="flex min-w-0 items-center overflow-x-auto [scrollbar-width:none]"
-      role="radiogroup"
-      aria-label="Interval"
-    >
-      {TIMEFRAME_IDS.map((id) => (
-        <Tooltip key={id} label={`Interval ${TIMEFRAMES[id].label}`} shortcut="type e.g. 4h ↵">
-          <button
-            type="button"
-            role="radio"
-            aria-checked={id === current}
-            onClick={() => void app.setTimeframe(id)}
-            className={`h-8 shrink-0 rounded-md px-2 text-[13px] font-medium transition-colors hover:bg-hover ${
-              id === current ? 'text-accent' : 'text-fg'
-            }`}
-          >
+    <>
+      {/* Narrow screens: a compact dropdown. */}
+      <select
+        aria-label="Interval"
+        value={current}
+        onChange={(e) => void app.setTimeframe(e.target.value as TimeframeId)}
+        className="h-8 shrink-0 rounded-md bg-transparent px-1 text-[13px] font-medium text-accent hover:bg-hover lg:hidden"
+      >
+        {TIMEFRAME_IDS.map((id) => (
+          <option key={id} value={id}>
             {TIMEFRAMES[id].label}
-          </button>
-        </Tooltip>
-      ))}
-    </div>
+          </option>
+        ))}
+      </select>
+      <div
+        className="hidden min-w-0 items-center overflow-x-auto [scrollbar-width:none] lg:flex"
+        role="radiogroup"
+        aria-label="Interval"
+      >
+        {TIMEFRAME_IDS.map((id) => (
+          <Tooltip key={id} label={`Interval ${TIMEFRAMES[id].label}`} shortcut="type e.g. 4h ↵">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={id === current}
+              onClick={() => void app.setTimeframe(id)}
+              className={`h-8 shrink-0 rounded-md px-2 text-[13px] font-medium transition-colors hover:bg-hover ${
+                id === current ? 'text-accent' : 'text-fg'
+              }`}
+            >
+              {TIMEFRAMES[id].label}
+            </button>
+          </Tooltip>
+        ))}
+      </div>
+    </>
   );
 }
