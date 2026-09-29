@@ -8,6 +8,8 @@ import {
   zLineWidth,
   zOpacity,
   zVAlign,
+  zFontFamily,
+  DEFAULT_FONT_FAMILY,
 } from '../../framework';
 
 export const trendLineStyleSchema = z.object({
@@ -31,6 +33,7 @@ export const trendLineStyleSchema = z.object({
   text: z.string().max(2000),
   textColor: zColor,
   fontSize: zFontSize,
+  fontFamily: zFontFamily,
   bold: z.boolean(),
   italic: z.boolean(),
   textAlign: zHAlign,
@@ -60,6 +63,7 @@ export const TREND_LINE_DEFAULTS: TrendLineStyle = {
   text: '',
   textColor: '#2962ff',
   fontSize: 14,
+  fontFamily: DEFAULT_FONT_FAMILY,
   bold: false,
   italic: false,
   textAlign: 'center',

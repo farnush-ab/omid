@@ -231,7 +231,8 @@ the shortcuts dialog contain no per-tool code.
 ## 9. Commands, events, persistence
 
 - **Commands** (`execute`/`undo`, optional `merge`) wrap every mutation: add/remove/update
-  drawing (snapshot based), reorder, bulk lock/hide/remove, chart-option changes. Continuous
+  drawing (snapshot based), lock/hide per drawing, reorder, remove all, chart-option changes.
+  ("Lock all" / "Hide all" / magnet / stay-in-drawing-mode are view modes, not document edits.) Continuous
   gestures (drag an anchor) mutate a live preview and commit exactly one command on release.
 - **EventBus** is typed per module: `ChartEventMap` (engine), `DrawingEventMap`,
   `ReplayEventMap`, `AppEventMap`. `on()` returns an unsubscribe function. The UI subscribes

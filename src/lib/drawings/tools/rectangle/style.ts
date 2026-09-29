@@ -7,6 +7,8 @@ import {
   zLineWidth,
   zOpacity,
   zVAlign,
+  zFontFamily,
+  DEFAULT_FONT_FAMILY,
 } from '../../framework';
 
 export const rectangleStyleSchema = z.object({
@@ -29,6 +31,7 @@ export const rectangleStyleSchema = z.object({
   text: z.string().max(2000),
   textColor: zColor,
   fontSize: zFontSize,
+  fontFamily: zFontFamily,
   bold: z.boolean(),
   italic: z.boolean(),
   textHAlign: zHAlign,
@@ -58,6 +61,7 @@ export const RECTANGLE_DEFAULTS: RectangleStyle = {
   text: '',
   textColor: '#9c27b0',
   fontSize: 14,
+  fontFamily: DEFAULT_FONT_FAMILY,
   bold: false,
   italic: false,
   textHAlign: 'center',

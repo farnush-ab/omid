@@ -8,6 +8,8 @@ export const zLineWidth = z.number().min(1).max(12);
 export const zLineStyle = z.enum(LINE_STYLES);
 export const zLineEnd = z.enum(['none', 'arrow', 'circle']);
 export const zFontSize = z.number().min(6).max(96);
+export const zFontFamily = z.string().min(1).max(120);
+export const DEFAULT_FONT_FAMILY = 'Inter, system-ui, sans-serif';
 export const zHAlign = z.enum(['left', 'center', 'right']);
 export const zVAlign = z.enum(['top', 'middle', 'bottom']);
 
@@ -58,6 +60,7 @@ export function textFields(
     },
     { kind: 'color', key: 'textColor', label: 'Color' },
     { kind: 'fontSize', key: 'fontSize', label: 'Size', inline: true },
+    { kind: 'fontFamily', key: 'fontFamily', label: 'Font' },
     { kind: 'boolean', key: 'bold', label: 'Bold' },
     { kind: 'boolean', key: 'italic', label: 'Italic' },
   ];
