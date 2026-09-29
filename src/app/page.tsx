@@ -1,3 +1,9 @@
+import ChartClient from '@/components/chart/ChartClient';
+
 export default function Page() {
-  return <main className="p-4">TradingChart — milestone 0</main>;
+  return (
+    <main className="h-full w-full bg-[#131722]">
+      <ChartClient />
+    </main>
+  );
 }
