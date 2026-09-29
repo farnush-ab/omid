@@ -19,7 +19,6 @@ only for UI state.
 ## Getting started
 
 ```bash
-cd tradingchart
 npm install
 npm run dev        # http://localhost:3000
 npm run build      # production build
