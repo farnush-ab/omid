@@ -26,6 +26,11 @@ import { ShortcutRegistry } from './shortcuts/shortcut-registry';
 
 export interface ChartAppOptions {
   readonly initialBars?: number;
+  /**
+   * Load/save per-symbol drawings from storage on symbol switches (default true). Lesson
+   * playback turns it off: drawings then come only from the lesson.
+   */
+  readonly persistDrawings?: boolean;
 }
 
 /**
@@ -121,7 +126,7 @@ export class ChartApp {
         if (symbol.symbol !== this.loadedSymbol) {
           this.loadedSymbol = symbol.symbol;
           this.history.clear();
-          void this.drawingStore.switchSymbol(symbol.symbol);
+          if (options.persistDrawings !== false) void this.drawingStore.switchSymbol(symbol.symbol);
         }
       }),
     );

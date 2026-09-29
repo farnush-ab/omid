@@ -6,3 +6,4 @@ export { CHART_SETTINGS_SCHEMA } from './settings/chart-settings-schema';
 export { chordLabel, type KeyInput } from './shortcuts/keys';
 export type { ShortcutDefinition, ShortcutCategory } from './shortcuts/shortcut-registry';
 export type { ImportResult } from './services/theme-service';
+export * from './lessons';

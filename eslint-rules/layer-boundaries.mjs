@@ -20,7 +20,8 @@ const ALLOWED = {
   themes: ['core', 'themes'],
   data: ['core', 'data'],
   storage: ['core', 'storage'],
-  app: ['core', 'series', 'drawings', 'replay', 'themes', 'data', 'storage', 'app'],
+  lessons: ['core', 'lessons'],
+  app: ['core', 'series', 'drawings', 'replay', 'themes', 'data', 'storage', 'lessons', 'app'],
   components: [
     'core',
     'series',
@@ -29,6 +30,7 @@ const ALLOWED = {
     'themes',
     'data',
     'storage',
+    'lessons',
     'app',
     'components',
   ],
@@ -40,6 +42,7 @@ const ALLOWED = {
     'themes',
     'data',
     'storage',
+    'lessons',
     'app',
     'components',
     'next',
@@ -54,6 +57,7 @@ const LIB_ELEMENTS = new Set([
   'themes',
   'data',
   'storage',
+  'lessons',
   'app',
 ]);
 const UI_ELEMENTS = new Set(['components', 'next']);
