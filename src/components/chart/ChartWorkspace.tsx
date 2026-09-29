@@ -10,6 +10,7 @@ import { LoadingOverlay } from '../overlays/LoadingOverlay';
 import { Toasts } from '../overlays/Toasts';
 import { AppContext } from '../state/app-context';
 import { connectBridge } from '../state/bridge';
+import { ReplayBar } from '../replay/ReplayBar';
 import { TopToolbar } from '../toolbar/TopToolbar';
 import { ContextMenu } from '../drawing/ContextMenu';
 import { DrawingToolbar } from '../drawing/DrawingToolbar';
@@ -80,6 +81,7 @@ export default function ChartWorkspace() {
             <LoadingOverlay />
           </main>
         </div>
+        {app ? <ReplayBar /> : null}
         {app ? (
           <>
             <DialogHost />

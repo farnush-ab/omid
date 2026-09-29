@@ -3,6 +3,7 @@
 import { useUiStore } from '../state/ui-store';
 import { ChartSettingsDialog } from './ChartSettingsDialog';
 import { DrawingSettingsDialog } from './DrawingSettingsDialog';
+import { ReplayDateDialog } from './ReplayDateDialog';
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { SymbolSearchDialog } from './SymbolSearchDialog';
 import { ThemeEditorDialog } from './ThemeEditorDialog';
@@ -30,6 +31,8 @@ export function DialogHost() {
           onClose={close}
         />
       );
+    case 'replay-date':
+      return <ReplayDateDialog onClose={close} />;
     default:
       return null;
   }

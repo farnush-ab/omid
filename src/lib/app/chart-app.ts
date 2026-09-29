@@ -6,6 +6,7 @@ import {
   type TimeframeId,
 } from '@/lib/core';
 import { DrawingManager, drawingRegistry } from '@/lib/drawings';
+import { ReplayController } from '@/lib/replay';
 import { DEFAULT_SERIES_ID, seriesRegistry } from '@/lib/series';
 import { VersionedStore } from '@/lib/storage';
 import { themeRegistry, DEFAULT_THEME_ID } from '@/lib/themes';
@@ -18,6 +19,7 @@ import { ThemeService } from './services/theme-service';
 import { loadAppState, saveAppState } from './services/app-state';
 import { DrawingPersistence } from './services/drawing-persistence';
 import { drawingShortcuts } from './shortcuts/drawing-shortcuts';
+import { REPLAY_SHORTCUTS } from './shortcuts/replay-shortcuts';
 import { DEFAULT_SHORTCUTS } from './shortcuts/default-shortcuts';
 import { KeyboardController } from './shortcuts/keyboard-controller';
 import { ShortcutRegistry } from './shortcuts/shortcut-registry';
@@ -39,6 +41,7 @@ export class ChartApp {
   readonly settings: ChartSettingsService;
   readonly drawings: DrawingManager;
   readonly drawingStore: DrawingPersistence;
+  readonly replay: ReplayController;
   readonly shortcuts = new ShortcutRegistry<ChartApp>();
   readonly keyboard: KeyboardController<ChartApp>;
   readonly store: VersionedStore;
@@ -82,8 +85,22 @@ export class ChartApp {
       this.events,
       deps.runtime.timer,
     );
-    // Registration order is match priority: drawing shortcuts (e.g. arrows nudging a selection)
-    // come before the generic chart ones.
+    this.replay = new ReplayController(
+      this.engine,
+      {
+        fullData: () => this.market.data,
+        timeframe: () => this.market.state.timeframe,
+        loadTimeframe: (tf) => this.market.load(this.symbol, tf, { resetView: false }),
+        fetchForward: (tf, startTime, limit) =>
+          this.market.fetchRange({ timeframe: tf, startTime, limit }),
+        setDisplayOverride: (active) => this.market.setDisplayOverride(active),
+      },
+      deps.runtime.timer,
+      deps.rng,
+    );
+    // Registration order is match priority: replay, then drawing shortcuts (e.g. arrows nudging
+    // a selection), then the generic chart ones.
+    for (const s of REPLAY_SHORTCUTS) this.shortcuts.register(s);
     for (const s of drawingShortcuts()) this.shortcuts.register(s);
     for (const s of DEFAULT_SHORTCUTS) this.shortcuts.register(s);
     this.keyboard = new KeyboardController<ChartApp>(
@@ -99,6 +116,7 @@ export class ChartApp {
     );
     this.disposers.push(
       this.history.onChange((s) => this.events.emit('history:changed', s)),
+      this.market.onPrepend((bars) => this.replay.onHistoryPrepended(bars)),
       this.events.on('market:changed', ({ symbol }) => {
         if (symbol.symbol !== this.loadedSymbol) {
           this.loadedSymbol = symbol.symbol;
@@ -134,13 +152,16 @@ export class ChartApp {
   async setSymbol(symbol: string): Promise<void> {
     const s = symbol.trim().toUpperCase();
     if (!s || s === this.symbol) return;
+    if (this.replay.state !== 'idle') this.replay.exit();
     await this.market.load(s, this.timeframe);
     void saveAppState(this.store, { symbol: this.symbol, timeframe: this.timeframe });
   }
 
   async setTimeframe(tf: TimeframeId): Promise<void> {
     if (tf === this.timeframe) return;
-    await this.market.load(this.symbol, tf);
+    if (this.replay.state === 'selecting') this.replay.cancelSelecting();
+    // During replay the timeframe switch keeps replay time (partial candles build up).
+    if (!(await this.replay.changeTimeframe(tf))) await this.market.load(this.symbol, tf);
     void saveAppState(this.store, { symbol: this.symbol, timeframe: this.timeframe });
   }
 
@@ -153,6 +174,7 @@ export class ChartApp {
     this.destroyed = true;
     for (const d of this.disposers.splice(0)) d();
     this.keyboard.destroy();
+    this.replay.destroy();
     this.drawingStore.destroy();
     this.drawings.destroy();
     this.settings.destroy();

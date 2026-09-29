@@ -8,6 +8,7 @@ import {
   type TimeframeId,
 } from '@/lib/core';
 import type { DrawingModes, SerializedDrawing } from '@/lib/drawings';
+import type { ReplayStatus } from '@/lib/replay';
 import { darkTheme } from '@/lib/themes';
 
 export type DialogState =
@@ -58,6 +59,7 @@ export interface UiState {
   drawingCount: number;
   contextMenu: ContextMenuState | null;
   textEdit: string | null;
+  replay: ReplayStatus;
 }
 
 interface UiActions {
@@ -92,6 +94,14 @@ export const useUiStore = create<UiState & UiActions>()((set) => ({
   drawingCount: 0,
   contextMenu: null,
   textEdit: null,
+  replay: {
+    state: 'idle',
+    speed: 1,
+    cursorTime: null,
+    atEnd: false,
+    baseTimeframe: null,
+    loading: false,
+  },
   openContextMenu: (contextMenu) => set({ contextMenu }),
   setTextEdit: (textEdit) => set({ textEdit }),
   openDialog: (dialog) => set({ dialog }),

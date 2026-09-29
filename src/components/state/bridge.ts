@@ -83,6 +83,7 @@ export function connectBridge(app: ChartApp): () => void {
     app.engine.events.on('contextmenu', ({ clientX, clientY, time, price }) =>
       openContextMenu({ clientX, clientY, target: { kind: 'chart', time, price } }),
     ),
+    app.replay.events.on('replay:changed', (replay) => set({ replay })),
     app.engine.events.on('options:changed', (options) => set({ options: { ...options } })),
     app.engine.events.on('viewport:changed', ({ atLatest }) => {
       if (useUiStore.getState().atLatest !== atLatest) set({ atLatest });
