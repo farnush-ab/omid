@@ -11,6 +11,9 @@ import { Toasts } from '../overlays/Toasts';
 import { AppContext } from '../state/app-context';
 import { connectBridge } from '../state/bridge';
 import { TopToolbar } from '../toolbar/TopToolbar';
+import { ContextMenu } from '../drawing/ContextMenu';
+import { DrawingToolbar } from '../drawing/DrawingToolbar';
+import { FloatingToolbar } from '../drawing/FloatingToolbar';
 import { ChartControls } from './ChartControls';
 import { Legend } from './Legend';
 
@@ -57,19 +60,30 @@ export default function ChartWorkspace() {
       <div className="flex h-full w-full flex-col bg-chart text-fg">
         {app ? <TopToolbar /> : <div className="h-10 shrink-0 border-b border-line bg-panel" />}
         <div className="flex min-h-0 flex-1">
+          {app ? (
+            <DrawingToolbar />
+          ) : (
+            <div className="w-12 shrink-0 border-r border-line bg-panel" />
+          )}
           <main className="relative min-w-0 flex-1" aria-label="Chart">
             <div ref={chartRef} className="absolute inset-0" data-testid="chart" />
             {app ? (
               <>
                 <Legend />
                 <ChartControls />
+                <FloatingToolbar />
                 <IntervalTyperOverlay />
               </>
             ) : null}
             <LoadingOverlay />
           </main>
         </div>
-        {app ? <DialogHost /> : null}
+        {app ? (
+          <>
+            <DialogHost />
+            <ContextMenu />
+          </>
+        ) : null}
         <Toasts />
       </div>
     </AppContext.Provider>

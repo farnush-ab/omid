@@ -5,6 +5,7 @@ import {
   createIdGenerator,
   type TimeframeId,
 } from '@/lib/core';
+import { DrawingManager, drawingRegistry } from '@/lib/drawings';
 import { DEFAULT_SERIES_ID, seriesRegistry } from '@/lib/series';
 import { VersionedStore } from '@/lib/storage';
 import { themeRegistry, DEFAULT_THEME_ID } from '@/lib/themes';
@@ -15,6 +16,8 @@ import { MarketDataController } from './services/market-data-controller';
 import { ChartSettingsService } from './services/chart-settings-service';
 import { ThemeService } from './services/theme-service';
 import { loadAppState, saveAppState } from './services/app-state';
+import { DrawingPersistence } from './services/drawing-persistence';
+import { drawingShortcuts } from './shortcuts/drawing-shortcuts';
 import { DEFAULT_SHORTCUTS } from './shortcuts/default-shortcuts';
 import { KeyboardController } from './shortcuts/keyboard-controller';
 import { ShortcutRegistry } from './shortcuts/shortcut-registry';
@@ -34,11 +37,14 @@ export class ChartApp {
   readonly market: MarketDataController;
   readonly themes: ThemeService;
   readonly settings: ChartSettingsService;
+  readonly drawings: DrawingManager;
+  readonly drawingStore: DrawingPersistence;
   readonly shortcuts = new ShortcutRegistry<ChartApp>();
   readonly keyboard: KeyboardController<ChartApp>;
   readonly store: VersionedStore;
   private readonly disposers: Array<() => void> = [];
   private destroyed = false;
+  private loadedSymbol: string | null = null;
 
   constructor(
     container: HTMLElement,
@@ -69,6 +75,16 @@ export class ChartApp {
       this.store,
       deps.runtime.timer,
     );
+    this.drawings = new DrawingManager(this.engine, this.history, drawingRegistry, newId);
+    this.drawingStore = new DrawingPersistence(
+      this.drawings,
+      this.store,
+      this.events,
+      deps.runtime.timer,
+    );
+    // Registration order is match priority: drawing shortcuts (e.g. arrows nudging a selection)
+    // come before the generic chart ones.
+    for (const s of drawingShortcuts()) this.shortcuts.register(s);
     for (const s of DEFAULT_SHORTCUTS) this.shortcuts.register(s);
     this.keyboard = new KeyboardController<ChartApp>(
       this.shortcuts,
@@ -81,7 +97,16 @@ export class ChartApp {
       },
       deps.runtime.timer,
     );
-    this.disposers.push(this.history.onChange((s) => this.events.emit('history:changed', s)));
+    this.disposers.push(
+      this.history.onChange((s) => this.events.emit('history:changed', s)),
+      this.events.on('market:changed', ({ symbol }) => {
+        if (symbol.symbol !== this.loadedSymbol) {
+          this.loadedSymbol = symbol.symbol;
+          this.history.clear();
+          void this.drawingStore.switchSymbol(symbol.symbol);
+        }
+      }),
+    );
   }
 
   /** Loads persisted state, then data. Call once after construction. */
@@ -119,15 +144,17 @@ export class ChartApp {
     void saveAppState(this.store, { symbol: this.symbol, timeframe: this.timeframe });
   }
 
-  /** Overridden once drawings exist: whether a drawing is selected (arrow keys nudge it). */
+  /** Whether a drawing is selected (arrow keys nudge it instead of scrolling). */
   hasSelection(): boolean {
-    return false;
+    return this.drawings.selected !== null;
   }
 
   destroy(): void {
     this.destroyed = true;
     for (const d of this.disposers.splice(0)) d();
     this.keyboard.destroy();
+    this.drawingStore.destroy();
+    this.drawings.destroy();
     this.settings.destroy();
     this.market.destroy();
     this.engine.destroy();

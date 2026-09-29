@@ -2,6 +2,7 @@
 
 import { useUiStore } from '../state/ui-store';
 import { ChartSettingsDialog } from './ChartSettingsDialog';
+import { DrawingSettingsDialog } from './DrawingSettingsDialog';
 import { ShortcutsDialog } from './ShortcutsDialog';
 import { SymbolSearchDialog } from './SymbolSearchDialog';
 import { ThemeEditorDialog } from './ThemeEditorDialog';
@@ -20,6 +21,15 @@ export function DialogHost() {
       return <ShortcutsDialog onClose={close} />;
     case 'theme-editor':
       return <ThemeEditorDialog onClose={close} />;
+    case 'drawing-settings':
+      return (
+        <DrawingSettingsDialog
+          key={dialog.drawingId}
+          drawingId={dialog.drawingId}
+          initialTab={dialog.tab}
+          onClose={close}
+        />
+      );
     default:
       return null;
   }

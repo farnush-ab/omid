@@ -325,6 +325,10 @@ export class ChartEngine {
     };
   }
 
+  measureText(text: string, font: string): number {
+    return this.host.measureText(text, font);
+  }
+
   getLayout(): ChartLayout {
     return this.layout;
   }

@@ -7,7 +7,19 @@ import { useUiStore } from './ui-store';
  */
 export function connectBridge(app: ChartApp): () => void {
   const set = useUiStore.setState;
-  const { openDialog, closeDialog, pushToast } = useUiStore.getState();
+  const { openDialog, closeDialog, pushToast, openContextMenu, setTextEdit } =
+    useUiStore.getState();
+  const d = app.drawings;
+  // Drags update the selected drawing on every pointer move; only re-snapshot when something the
+  // panels show changed (style/flags), or when a dialog that shows coordinates is open.
+  let lastKey = '';
+  const snapshotSelection = () => {
+    const snap = d.selected?.serialize() ?? null;
+    const key = snap ? JSON.stringify([snap.id, snap.style, snap.locked, snap.hidden]) : '';
+    if (key === lastKey && !useUiStore.getState().dialog) return;
+    lastKey = key;
+    set({ selection: snap });
+  };
   set({
     options: app.engine.getOptions(),
     history: app.history.state,
@@ -54,6 +66,23 @@ export function connectBridge(app: ChartApp): () => void {
           return closeDialog();
       }
     }),
+    d.events.on('tool:changed', ({ tool }) => set({ activeTool: tool })),
+    d.events.on('modes:changed', (drawingModes) => set({ drawingModes })),
+    d.events.on('selection:changed', snapshotSelection),
+    d.events.on('drawing:updated', ({ id }) => {
+      if (id === useUiStore.getState().selection?.id) snapshotSelection();
+    }),
+    d.events.on('drawings:changed', ({ count }) => set({ drawingCount: count })),
+    d.events.on('text:edit', ({ id }) => setTextEdit(id)),
+    d.events.on('settings:open', ({ id }) =>
+      openDialog({ type: 'drawing-settings', drawingId: id }),
+    ),
+    d.events.on('contextmenu', ({ id, clientX, clientY }) =>
+      openContextMenu({ clientX, clientY, target: { kind: 'drawing', id } }),
+    ),
+    app.engine.events.on('contextmenu', ({ clientX, clientY, time, price }) =>
+      openContextMenu({ clientX, clientY, target: { kind: 'chart', time, price } }),
+    ),
     app.engine.events.on('options:changed', (options) => set({ options: { ...options } })),
     app.engine.events.on('viewport:changed', ({ atLatest }) => {
       if (useUiStore.getState().atLatest !== atLatest) set({ atLatest });
