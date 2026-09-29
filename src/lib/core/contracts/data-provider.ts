@@ -6,9 +6,9 @@ export interface BarsRequest {
   readonly symbol: string;
   readonly timeframe: TimeframeId;
   /** Inclusive start (ms). */
-  readonly startTime?: number;
+  readonly startTime?: number | undefined;
   /** Inclusive end (ms). Omit for "latest". */
-  readonly endTime?: number;
+  readonly endTime?: number | undefined;
   readonly limit: number;
 }
 

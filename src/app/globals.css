@@ -1,6 +1,83 @@
 @import 'tailwindcss';
 
+/* Design tokens. Values are overwritten at runtime from the active theme (see useThemeCssVars). */
+:root {
+  --tc-bg: #131722;
+  --tc-panel: #1e222d;
+  --tc-border: #2a2e39;
+  --tc-text: #d1d4dc;
+  --tc-muted: #787b86;
+  --tc-hover: #2a2e39;
+  --tc-accent: #2962ff;
+  --tc-accent-text: #ffffff;
+  --tc-up: #089981;
+  --tc-down: #f23645;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-chart: var(--tc-bg);
+  --color-panel: var(--tc-panel);
+  --color-line: var(--tc-border);
+  --color-fg: var(--tc-text);
+  --color-muted: var(--tc-muted);
+  --color-hover: var(--tc-hover);
+  --color-accent: var(--tc-accent);
+  --color-accent-fg: var(--tc-accent-text);
+  --color-up: var(--tc-up);
+  --color-down: var(--tc-down);
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif;
+  --animate-pop: pop 140ms ease-out;
+  --animate-fade: fade 160ms ease-out;
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 html,
 body {
   height: 100%;
+  background: var(--tc-bg);
+  color: var(--tc-text);
+  font-family: var(--font-sans);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--tc-border) transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--tc-accent);
+  outline-offset: 1px;
+}
+
+input[type='range'] {
+  accent-color: var(--tc-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
