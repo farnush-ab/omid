@@ -20,11 +20,16 @@ export function connectBridge(app: ChartApp): () => void {
     lastKey = key;
     set({ selection: snap });
   };
+  // Start from this app's state: another app (recorder, player) may have run before.
   set({
     options: app.engine.getOptions(),
     history: app.history.state,
     themes: app.themes.list(),
     activeTheme: app.themes.active,
+    selection: d.selected?.serialize() ?? null,
+    activeTool: d.tool,
+    drawingModes: d.modes,
+    drawingCount: d.store.size,
   });
   const offs = [
     app.events.on('market:changed', ({ symbol, timeframe }) => set({ symbol, timeframe })),

@@ -20,6 +20,8 @@ tester.run('layer-boundaries', rule, {
     { code: "import { x } from '@/lib/drawings/tools/trend-line';", filename: f('lib/app/x.ts') },
     { code: "import { x } from '../core/events';", filename: f('lib/replay/x.ts') },
     { code: "import React from 'react';", filename: f('components/A.tsx') },
+    { code: "import { x } from '@/lib/core';", filename: f('lib/lessons/x.ts') },
+    { code: "import { x } from '@/lib/lessons';", filename: f('lib/app/x.ts') },
   ],
   invalid: [
     {
@@ -50,6 +52,16 @@ tester.run('layer-boundaries', rule, {
     {
       code: "import { x } from '@/lib/storage';",
       filename: f('lib/data/x.ts'),
+      errors: [{ messageId: 'layer' }],
+    },
+    {
+      code: "import { x } from '@/lib/app';",
+      filename: f('lib/lessons/x.ts'),
+      errors: [{ messageId: 'layer' }],
+    },
+    {
+      code: "import { x } from '@/lib/drawings';",
+      filename: f('lib/lessons/x.ts'),
       errors: [{ messageId: 'layer' }],
     },
   ],

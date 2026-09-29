@@ -46,7 +46,7 @@ export default defineConfig([
     },
   },
   {
-    files: ['src/lib/{core,series,drawings,replay}/**/*.ts'],
+    files: ['src/lib/{core,series,drawings,replay,lessons}/**/*.ts'],
     rules: determinism,
   },
   globalIgnores(['.next/**', 'out/**', 'build/**', 'coverage/**', 'next-env.d.ts']),

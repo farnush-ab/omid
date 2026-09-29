@@ -140,6 +140,24 @@ export class MarketDataController {
     }
   }
 
+  /**
+   * Shows a fixed set of bars synchronously (lesson playback): no fetching, no history paging.
+   * Cancels any in-flight load.
+   */
+  show(symbol: SymbolInfo, timeframe: TimeframeId, bars: readonly Candle[]): void {
+    this.abort?.abort();
+    this.abort = null;
+    this.generation += 1;
+    this.current = { symbol, timeframe };
+    this.series = SeriesData.fromCandles(bars);
+    this.hasMore = false;
+    this.loadingHistory = false;
+    this.events.emit('market:changed', this.current);
+    this.engine.setSymbol(symbol);
+    this.engine.setTimeframe(timeframe);
+    if (!this.displayOverride) this.engine.setData(this.series, { resetView: false });
+  }
+
   /** Arbitrary range fetch for the current symbol (replay uses finer timeframes). */
   fetchRange(req: Omit<BarsRequest, 'symbol'>, signal?: AbortSignal): Promise<Candle[]> {
     return this.provider

@@ -49,6 +49,7 @@ export class DrawingManager {
     hideAll: false,
   };
   private clipboard: SerializedDrawing[] = [];
+  private ghost: Drawing | null = null;
   private readonly interaction: DrawingInteraction;
   private readonly disposers: Array<() => void> = [];
 
@@ -318,6 +319,26 @@ export class DrawingManager {
   /** Enter: finish a multi-point placement. */
   confirm(): boolean {
     return this.interaction.confirm();
+  }
+
+  /** The drawing being placed right now (follows the pointer), or null. */
+  get placementPreview(): SerializedDrawing | null {
+    return this.interaction.placement?.drawing.serialize() ?? null;
+  }
+
+  /**
+   * Shows a placement preview that is not driven by the pointer (lesson playback shows the
+   * teacher's half-drawn shape). Rendered like a live placement; null hides it.
+   */
+  showPlacementPreview(snap: SerializedDrawing | null): void {
+    const next = snap ? deserializeDrawing(snap, this.registry) : null;
+    this.ghost = next?.ok ? next.drawing : null;
+    this.invalidate();
+  }
+
+  /** Preview set through showPlacementPreview (renderer only). */
+  get placementGhost(): Drawing | null {
+    return this.ghost;
   }
 
   get isBusy(): boolean {

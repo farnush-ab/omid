@@ -50,7 +50,8 @@ export function createDrawingsRenderer(
     id: 'drawings',
     zIndex: 0,
     render(ctx, f) {
-      if (m.modes.hideAll && !interaction.placement) return;
+      const preview = interaction.placement?.drawing ?? m.placementGhost;
+      if (m.modes.hideAll && !preview) return;
       const dc = contextFromFrame(f, m);
       const pane = f.layout.pricePane;
       ctx.save();
@@ -73,7 +74,6 @@ export function createDrawingsRenderer(
           ctx.restore();
         }
       }
-      const preview = interaction.placement?.drawing;
       if (preview) {
         ctx.save();
         preview.render(ctx, dc, { hovered: false, selected: true, placing: true });

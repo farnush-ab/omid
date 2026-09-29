@@ -76,10 +76,15 @@ export class DrawingInteraction implements InteractionHandler {
 
   // ---- placement ----------------------------------------------------------------------------
 
+  private placementChanged(): void {
+    this.m.events.emit('placement:changed', { active: this.placement !== null });
+  }
+
   private startPlacement(def: AnyToolDefinition, e: ChartPointerEvent): void {
     const style = this.m.defaults.resolve(def, this.m.engine.getTheme());
     const p = this.pointAt(e, def, null);
     this.placement = new PlacementSession(def, this.m.newId(), style, p, () => this.m.context());
+    this.placementChanged();
     if (this.placement.immediate) this.finishPlacement();
   }
 
@@ -88,6 +93,7 @@ export class DrawingInteraction implements InteractionHandler {
     if (!session) return;
     this.placement = null;
     this.drag = null;
+    this.placementChanged();
     if (!session.canFinish()) return this.m.invalidate();
     const drawing = session.finish();
     const stay = this.m.modes.stayInDrawingMode;
@@ -103,6 +109,7 @@ export class DrawingInteraction implements InteractionHandler {
     if (!this.placement) return;
     this.placement = null;
     this.drag = null;
+    this.placementChanged();
     this.m.invalidate();
   }
 
@@ -159,6 +166,7 @@ export class DrawingInteraction implements InteractionHandler {
   onHover(e: ChartPointerEvent): string | null {
     if (this.placement) {
       this.placement.move(this.pointAt(e, this.placement.def, this.placement.lastClick));
+      this.placementChanged();
       this.m.invalidate();
       return 'crosshair';
     }
@@ -185,7 +193,10 @@ export class DrawingInteraction implements InteractionHandler {
         this.pointAt(e, this.placement.def, this.placement.lastClick),
       );
       if (step === 'done') this.finishPlacement();
-      else this.drag = { kind: 'place', downX: e.x, downY: e.y };
+      else {
+        this.drag = { kind: 'place', downX: e.x, downY: e.y };
+        this.placementChanged();
+      }
       this.m.invalidate();
       return true;
     }
@@ -217,6 +228,7 @@ export class DrawingInteraction implements InteractionHandler {
     const drag = this.drag;
     if (this.placement) {
       this.placement.move(this.pointAt(e, this.placement.def, this.placement.lastClick));
+      this.placementChanged();
       this.m.invalidate();
       return;
     }

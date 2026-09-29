@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PriceScale, TimeScale, generatePriceTicks, niceStep } from '@/lib/core';
+import { ViewportController } from '@/lib/core/engine/viewport-controller';
 
 describe('TimeScale (index <-> x)', () => {
   const ts = new TimeScale();
@@ -126,5 +127,34 @@ describe('price ticks', () => {
         expect(Math.abs(ticks[i]!.y - ticks[i - 1]!.y)).toBeGreaterThanOrEqual(39);
       }
     }
+  });
+});
+
+describe('ViewportController drag-pan', () => {
+  const setup = (inverted: boolean) => {
+    const vp = new ViewportController({ now: () => 0 });
+    vp.setDataLength(100);
+    vp.price.height = 500;
+    vp.price.min = 100;
+    vp.price.max = 200;
+    vp.price.autoScale = false;
+    vp.price.inverted = inverted;
+    return vp;
+  };
+
+  it.each([false, true])('content follows the pointer vertically (inverted=%s)', (inverted) => {
+    const vp = setup(inverted);
+    const before = vp.price.priceToY(150);
+    vp.panBy(0, 40); // drag down by 40px
+    expect(vp.price.priceToY(150)).toBeCloseTo(before + 40, 6);
+    vp.panBy(0, -70); // drag up by 70px
+    expect(vp.price.priceToY(150)).toBeCloseTo(before - 30, 6);
+  });
+
+  it('does not move vertically while auto-scale is on', () => {
+    const vp = setup(false);
+    vp.price.autoScale = true;
+    vp.panBy(0, 40);
+    expect([vp.price.min, vp.price.max]).toEqual([100, 200]);
   });
 });
